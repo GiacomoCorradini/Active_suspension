@@ -13,6 +13,13 @@ bs  = 1544;  % Suspension Inherent Damping coefficient (sec/m)
 kus = 10^5;  % Wheel stiffness (N/m)
 bus = 40000; % Wheel Inhenrent Damping coefficient (sec/m)
 
+ms  = 5333;
+mus = 906.5;
+ks  = 430000;
+kus = 2440000;
+bs  = 20000;
+bus = 40000;
+
 % zs  -> sprung mass displacement
 % zus -> unsprung mass displacement
 % zs  -> sprung mass velocity
@@ -21,26 +28,39 @@ bus = 40000; % Wheel Inhenrent Damping coefficient (sec/m)
 
 %% Road profile
 
-T_f = 5;
+T_f = 10;
 sim_time = 0.01:0.04:T_f;
 road_surface = zeros(2,length(sim_time));
 
+% from git example
+% for i = 1:length(sim_time)
+%     road_surface(1,i) = sim_time(i);  
+%     if ((sim_time(i)>=0.5) && (sim_time(i)<=0.75))
+%         road_surface(2,i) = (0.055*(1-cos(8*pi*sim_time(i))));
+%     elseif (sim_time(i)>=3) && (sim_time(i)<=3.25)
+%         road_surface(2,i) = (0.025*(1-cos(8*pi*sim_time(i))));
+%       else
+%         road_surface(2,i) = 0;  
+%     end
+% end
+
+% from paper (Sliding mode controllers for active suspensions)
 for i = 1:length(sim_time)
     road_surface(1,i) = sim_time(i);  
-    if ((sim_time(i)>=0.5) && (sim_time(i)<=0.75))
-        road_surface(2,i) = (0.055*(1-cos(8*pi*sim_time(i))));
-    elseif (sim_time(i)>=3) && (sim_time(i)<=3.25)
-        road_surface(2,i) = (0.025*(1-cos(8*pi*sim_time(i))));
-      else
+    if ((sim_time(i)>0.5) && (sim_time(i)<0.75))
+        road_surface(2,i) = (0.5*(1-sin(0.8*pi*sim_time(i))));
+    else
         road_surface(2,i) = 0;  
     end
 end
 
 road_surface = timeseries(road_surface(2,:),sim_time);
 
-% figure('Name','Road profile')
-% plot(road_surface)
-
+figure('Name','Road profile')
+plot(road_surface)
+xlabel('Time (s)')
+ylabel('zr [m]')
+title('Road surface displacement')
 
 %% Suspension dynamics
 
@@ -97,21 +117,52 @@ fprintf( 'The total simulation time was %.2f seconds\n', elapsed_time_simulation
 
 %% 
 
-qcar = ss(A,B,C,D);
-qcar.StateName = {'zs-zus (m)';'zs_dot (m/s)';'zus-zr (m)';'zus_dot (m/s)'};
-qcar.InputName = {'zr';'ft'};
-qcar.OutputName = {'zs-zus (m)';'zs_dot (m/s)';'zus-zr (m)';'zus_dot (m/s)';'zs_dotdot (m/s^2)'};
-
-tzero(qcar({'xb','ab'},'ft'))
+% qcar = ss(A,B,C,D);
+% qcar.StateName = {'zs-zus (m)';'zs_dot (m/s)';'zus-zr (m)';'zus_dot (m/s)'};
+% qcar.InputName = {'zr';'ft'};
+% qcar.OutputName = {'zs-zus (m)';'zs_dot (m/s)';'zus-zr (m)';'zus_dot (m/s)';'zs_dotdot (m/s^2)'};
+% 
+% tzero(qcar({'xb','ab'},'ft'))
 
 %% Extreact results
 
-state = model_sim.state;
+state_passive = model_sim.state.state_passive;
+state_LQR = model_sim.state.state_LQR;
+state_PID = model_sim.state.state_PID;
 
-figure('Name','State signals'); hold on;
-plot(state.signal1)
-plot(state.signal2)
-plot(state.signal3)
-plot(state.signal4)
-plot(state.signal5)
-legend({'zs-zus','zs_dot','zus-zr','zus_dot','zs_dotdot'})
+sprung_mass_a = model_sim.sprung_mass_acc;
+
+figure('Name','Suspension travel'); hold on;
+plot(state_passive.zs_zus)
+plot(state_LQR.zs_zus)
+plot(state_PID.zs_zus)
+legend({'passive','LQR','PID'})
+title('Suspension travel')
+
+figure('Name','Sprung mass velocity'); hold on;
+plot(state_passive.zs_d)
+plot(state_LQR.zs_d)
+plot(state_PID.zs_d)
+legend({'passive','LQR','PID'})
+title('Sprung mass velocity')
+
+figure('Name','Tire deflection'); hold on;
+plot(state_passive.zus_zr)
+plot(state_LQR.zus_zr)
+plot(state_PID.zus_zr)
+legend({'passive','LQR','PID'})
+title('Tire deflection')
+
+figure('Name','Unsprung mass velocity'); hold on;
+plot(state_passive.zus_d)
+plot(state_LQR.zus_d)
+plot(state_PID.zus_d)
+legend({'passive','LQR','PID'})
+title('Unsprung mass velocity')
+
+figure('Name','Sprung mass acceleration'); hold on;
+plot(sprung_mass_a.zs_dd_passive)
+plot(sprung_mass_a.zs_dd_LQR)
+plot(sprung_mass_a.zs_dd_PID)
+legend({'passive','LQR','PID'})
+title('Sprung mass acceleration')
