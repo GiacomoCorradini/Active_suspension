@@ -5,3 +5,5 @@ slprj
 *slxc
 *.autosave
 *.asv
+main_SMC.m
+SMC_Active_Suspension.slx
