@@ -11,14 +11,7 @@ mus = 43;    % Unsprung Mass (kg)
 ks  = 26000; % Suspension Stiffness (N/m) 
 bs  = 1544;  % Suspension Inherent Damping coefficient (sec/m)
 kus = 10^5;  % Wheel stiffness (N/m)
-bus = 40000; % Wheel Inhenrent Damping coefficient (sec/m)
-
-ms  = 5333;
-mus = 906.5;
-ks  = 430000;
-kus = 2440000;
-bs  = 20000;
-bus = 40000;
+bus = 0; % Wheel Inhenrent Damping coefficient (sec/m)
 
 % zs  -> sprung mass displacement
 % zus -> unsprung mass displacement
@@ -74,6 +67,18 @@ C = [        eye(4)
 
 D = [zeros(4,2)
      0 1/ms];
+
+%% PID Tuning
+
+qcar = ss(A,B,C,D);
+qcar.StateName = {'zs-zus (m)';'zs_dot (m/s)';'zus-zr (m)';'zus_dot (m/s)'};
+qcar.InputName = {'zr_d';'Fa'};
+qcar.OutputName = {'zs-zus';'zs_dot';'zus-zr';'zus_dot';'zs_dotdot'};
+
+pid = pidtune(qcar(1,2),'PID');
+Kp = pid.Kp;
+Kd = pid.Kd;
+Ki = pid.Ki;
 
 %% Controllability
 
@@ -146,30 +151,94 @@ plot(sprung_mass_a.zs_dd_PID)
 legend({'passive','LQR','PID'})
 title('Sprung mass acceleration')
 
+%% Evaluation param
+
+sp_passive = state_passive.zs_zus.Data;
+sp_LQR = state_LQR.zs_zus.Data;
+sp_PID = state_PID.zs_zus.Data;
+
+msd_passive = state_passive.zs_d.Data;
+msd_LQR = state_LQR.zs_d.Data;
+msd_PID = state_PID.zs_d.Data;
+
+td_passive = state_passive.zus_zr.Data;
+td_LQR = state_LQR.zus_zr.Data;
+td_PID = state_PID.zus_zr.Data;
+
+musd_passive = state_passive.zus_d.Data;
+musd_LQR = state_LQR.zus_d.Data;
+musd_PID = state_PID.zus_d.Data;
+
+msdd_passive = sprung_mass_a.zs_dd_passive.Data;
+msdd_LQR = sprung_mass_a.zs_dd_LQR.Data;
+msdd_PID = sprung_mass_a.zs_dd_PID.Data;
+
+
+
+% Suspension travel
+sp_LQR_index = (1 - abs(rms(sp_LQR))/abs(rms(sp_passive)))*100
+sp_PID_index = (1 - abs(rms(sp_PID))/abs(rms(sp_passive)))*100
+
+% Tire deflection
+msd_LQR_index = (1 - abs(rms(msd_LQR))/abs(rms(msd_passive)))*100
+msd_PID_index = (1 - abs(rms(msd_PID))/abs(rms(msd_passive)))*100
+
+% Sprung mass velocity
+td_LQR_index = (1 - abs(rms(td_LQR))/abs(rms(td_passive)))*100
+td_PID_index = (1 - abs(rms(td_PID))/abs(rms(td_passive)))*100
+
+% Unsprung mass velocity
+musd_LQR_index = (1 - abs(rms(musd_LQR))/abs(rms(musd_passive)))*100
+musd_PID_index = (1 - abs(rms(musd_PID))/abs(rms(musd_passive)))*100
+
+% Sprung mass acceleration
+msdd_LQR_index = (1 - abs(rms(msdd_LQR))/abs(rms(msdd_passive)))*100
+msdd_PID_index = (1 - abs(rms(msdd_PID))/abs(rms(msdd_passive)))*100
+
 %% Transfer function analysis
 
-qcar = ss(A,B,C,D);
-qcar.StateName = {'zs-zus (m)';'zs_dot (m/s)';'zus-zr (m)';'zus_dot (m/s)'};
-qcar.InputName = {'zr';'Fa'};
-qcar.OutputName = {'zs-zus';'zs_dot';'zus-zr';'zus_dot';'zs_dotdot'};
+% transfer function of interest
 
-% The transfer function from actuator to body travel and acceleration has an 
-% imaginary-axis zero with natural frequency 56.27 rad/s. This is called the tire-hop frequency.
-tzero(qcar({'xb','ab'},'ft'))
+% Acceleration transfer functio     -> Ha(s) = z_dd(s)/zr_d(s)
+% Rattle space transfer function    -> Hrs(s) = zs(s) - zus(s)/zr_d(s)
+% Tire deflection transfer function -> Htd(s) = zus(s) - zr(s)/zr_d(s)
 
-% Similarly, the transfer function from actuator to suspension deflection 
-% has an imaginary-axis zero with natural frequency 22.97 rad/s. This is called the rattlespace frequency.
-zero(qcar('sd','fs'))
+
+% qcar = ss(A,B,C,D);
+% qcar.StateName = {'zs-zus (m)';'zs_dot (m/s)';'zus-zr (m)';'zus_dot (m/s)'};
+% qcar.InputName = {'zr_d';'Fa'};
+% qcar.OutputName = {'zs-zus';'zs_dot';'zus-zr';'zus_dot';'zs_dotdot'};
+%%
+% % The transfer function from actuator to body travel and acceleration has an 
+% % imaginary-axis zero with natural frequency 56.27 rad/s. This is called the tire-hop frequency.
+% tzero(qcar({'xb','ab'},'ft'))
+% 
+% % Similarly, the transfer function from actuator to suspension deflection 
+% % has an imaginary-axis zero with natural frequency 22.97 rad/s. This is called the rattlespace frequency.
+% zero(qcar('sd','fs'))
 
 % Road disturbances influence the motion of the car and suspension. 
 % Passenger comfort is associated with small body acceleration. 
 % The allowable suspension travel is constrained by limits on the actuator displacement. 
 % Plot the open-loop gain from road disturbance and actuator force to body acceleration and suspension displacement.
-bodemag(qcar({'ab','sd'},'r'),'b',qcar({'ab','sd'},'fs'),'r',{1 100});
-legend('Road disturbance (r)','Actuator force (fs)','location','SouthWest')
-title({'Gain from road dist (r) and actuator force (fs) ';
-       'to body accel (ab) and suspension travel (sd)'})
+% figure('Name','Ha')
+% bodemag(qcar({'zs_dotdot','zs-zus'},'Fa'),'b',qcar({'zs_dotdot','zs-zus'},'zr_d'),'r',{1 100});
+% legend('Road disturbance (r)','Actuator force (fs)','location','SouthWest')
+% title({'Gain from road dist (r) and actuator force (fs) ';
+%        'to body accel (ab) and suspension travel (sd)'})
 
+%%
+% figure
+% bodemag(qcar({'zs_dotdot'},'zr_d'),'b',qcar({'zs-zus'},'zr_d'),'r',{1 100});
+% legend('Road disturbance (r)','Actuator force (fs)','location','SouthWest')
+% title({'Gain from road dist (r) and actuator force (fs) ';
+%        'to body accel (ab) and suspension travel (sd)'})
+% 
+% figure
+% bodemag(qcar({'zs_dotdot'},'zr_d'),'b',qcar({'zs-zus'},'zr_d'),'r',{1 100});
+% legend('Road disturbance (r)','Actuator force (fs)','location','SouthWest')
+% title({'Gain from road dist (r) and actuator force (fs) ';
+%        'to body accel (ab) and suspension travel (sd)'})
 
 
 
