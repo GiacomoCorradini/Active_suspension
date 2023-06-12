@@ -4,14 +4,26 @@ clc
 close all
 clear all
 
+warning off
+
+% Set LaTeX as default interpreter for axis labels, ticks and legends
+set(0,'defaulttextinterpreter','latex')
+set(groot, 'defaultAxesTickLabelInterpreter','latex');
+set(groot, 'defaultLegendInterpreter','latex');
+
+set(0,'defaultAxesFontSize',22)
+set(0,'DefaultLegendFontSize',22)
+set(0,'DefaultFigureWindowStyle','docked')
+set(0,'DefaultUicontrolFontsize', 14)
+
 %% Setting Params -> E-AGLE TRT car (Fenice)
 
 ms  = 234;   % Sprung Mass (kg)
 mus = 43;    % Unsprung Mass (kg)
 ks  = 26000; % Suspension Stiffness (N/m) 
-bs  = 1544;  % Suspension Inherent Damping coefficient (sec/m)
+bs  = 1544;  % Suspension Inherent Damping coefficient (N sec/m)
 kus = 10^5;  % Wheel stiffness (N/m)
-bus = 0; % Wheel Inhenrent Damping coefficient (sec/m)
+bus = 0; % Wheel Inhenrent Damping coefficient (N sec/m)
 
 % zs  -> sprung mass displacement
 % zus -> unsprung mass displacement
@@ -37,11 +49,11 @@ end
 
 road_surface = timeseries(road_surface(2,:),sim_time);
 
-figure('Name','Road profile')
-plot(road_surface)
-xlabel('Time (s)')
-ylabel('zr [m]')
-title('Road surface displacement')
+% figure('Name','Road profile')
+% plot(road_surface)
+% xlabel('Time (s)')
+% ylabel('zr [m]')
+% title('Road surface displacement')
 
 %% Suspension dynamics
 
@@ -80,6 +92,11 @@ Kp = pid.Kp;
 Kd = pid.Kd;
 Ki = pid.Ki;
 
+pid_2 = pidtune(qcar(5,2),'PID');
+Kp_2 = pid_2.Kp;
+Kd_2 = pid_2.Kd;
+Ki_2 = pid_2.Ki;
+
 %% Controllability
 
 % the controllability matrix must be full ranck
@@ -110,11 +127,19 @@ fprintf( 'The total simulation time was %.2f seconds\n', elapsed_time_simulation
 
 %% Extreact results
 
+% road profile 
+road_profile = model_sim.road_profile;
+
+figure('Name','Road profile'); hold on;
+plot(road_profile)
+title('Road surface displacement')
+xlabel('$Time [s]$')
+ylabel('$zr [m]$')
+
+% state space variable
 state_passive = model_sim.state.state_passive;
 state_LQR = model_sim.state.state_LQR;
 state_PID = model_sim.state.state_PID;
-
-sprung_mass_a = model_sim.sprung_mass_acc;
 
 figure('Name','Suspension travel'); hold on;
 plot(state_passive.zs_zus)
@@ -122,6 +147,8 @@ plot(state_LQR.zs_zus)
 plot(state_PID.zs_zus)
 legend({'passive','LQR','PID'})
 title('Suspension travel')
+ylabel('$zs - zus [m]$')
+xlabel('$Time [s]$')
 
 figure('Name','Sprung mass velocity'); hold on;
 plot(state_passive.zs_d)
@@ -129,6 +156,8 @@ plot(state_LQR.zs_d)
 plot(state_PID.zs_d)
 legend({'passive','LQR','PID'})
 title('Sprung mass velocity')
+ylabel('$\dot{zs}$ [m/s]')
+xlabel('$Time [s]$')
 
 figure('Name','Tire deflection'); hold on;
 plot(state_passive.zus_zr)
@@ -136,6 +165,8 @@ plot(state_LQR.zus_zr)
 plot(state_PID.zus_zr)
 legend({'passive','LQR','PID'})
 title('Tire deflection')
+ylabel('$zus - zr$ [m/s]')
+xlabel('$Time [s]$')
 
 figure('Name','Unsprung mass velocity'); hold on;
 plot(state_passive.zus_d)
@@ -143,6 +174,12 @@ plot(state_LQR.zus_d)
 plot(state_PID.zus_d)
 legend({'passive','LQR','PID'})
 title('Unsprung mass velocity')
+xlabel('Time (s)')
+ylabel('$\dot{zus}$ [m/s]')
+xlabel('$Time [s]$')
+
+% sprung mass acceleration
+sprung_mass_a = model_sim.sprung_mass_acc;
 
 figure('Name','Sprung mass acceleration'); hold on;
 plot(sprung_mass_a.zs_dd_passive)
@@ -150,6 +187,8 @@ plot(sprung_mass_a.zs_dd_LQR)
 plot(sprung_mass_a.zs_dd_PID)
 legend({'passive','LQR','PID'})
 title('Sprung mass acceleration')
+ylabel('$\ddot{zs} [m/s^2]$')
+xlabel('$Time [s]$')
 
 %% Evaluation param
 
@@ -172,8 +211,6 @@ musd_PID = state_PID.zus_d.Data;
 msdd_passive = sprung_mass_a.zs_dd_passive.Data;
 msdd_LQR = sprung_mass_a.zs_dd_LQR.Data;
 msdd_PID = sprung_mass_a.zs_dd_PID.Data;
-
-
 
 % Suspension travel
 sp_LQR_index = (1 - abs(rms(sp_LQR))/abs(rms(sp_passive)))*100
