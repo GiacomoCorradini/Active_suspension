@@ -18,12 +18,21 @@ set(0,'DefaultUicontrolFontsize', 14)
 
 %% Setting Params -> E-AGLE TRT car (Fenice)
 
-ms  = 234;   % Sprung Mass (kg)
+ms  = 234;   % Sprung Mass (kg) (all)
 mus = 43;    % Unsprung Mass (kg)
-ks  = 26000; % Suspension Stiffness (N/m) 
-bs  = 1544;  % Suspension Inherent Damping coefficient (N sec/m)
-kus = 10^5;  % Wheel stiffness (N/m)
-bus = 0; % Wheel Inhenrent Damping coefficient (N sec/m)
+
+% equivalent spring -> parallel of all springs 
+% ks = sum of all ks_i
+ks  = 26000*4; % Suspension Stiffness (N/m) 
+% equivalent damper -> parallel of all dampers 
+% bs = sum of all bs_i
+bs  = 1544*4;  % Suspension Inherent Damping coefficient (N sec/m)
+% equivalent spring -> parallel of all springs 
+% kus = sum of all kus_i
+kus = 100000*4;  % Wheel stiffness (N/m)
+% equivalent damper -> parallel of all dampers 
+% bus = sum of all bus_i
+bus = 0*4;     % Wheel Inhenrent Damping coefficient (N sec/m)
 
 % zs  -> sprung mass displacement
 % zus -> unsprung mass displacement
@@ -33,15 +42,24 @@ bus = 0; % Wheel Inhenrent Damping coefficient (N sec/m)
 
 %% Road profile
 
-T_f = 10;
+T_f = 5;
 sim_time = 0.01:0.04:T_f;
 road_surface = zeros(2,length(sim_time));
 
-% more realistic road profile
+% choose velocity
+% road = 1; % 20 km/h
+% road = 2; % 40 km/h
+road = 3; % 72 km/h
+
+% bump road profile
 for i = 1:length(sim_time)
     road_surface(1,i) = sim_time(i);  
-    if ((sim_time(i)>0.5) && (sim_time(i)<0.75))
-        road_surface(2,i) = (0.5*(1-sin(0.8*pi*sim_time(i))));
+    if ((sim_time(i)>1) && (sim_time(i)<1.09)) && road == 1 % 20 km/h
+        road_surface(2,i) = (0.04*(1-cos(7*pi*sim_time(i))));
+    elseif ((sim_time(i)>1) && (sim_time(i)<1.045)) && road == 2 % 40 km/h
+        road_surface(2,i) = (0.04*(1-cos(7*pi*sim_time(i))));
+    elseif ((sim_time(i)>1) && (sim_time(i)<1.025)) && road == 3 % 72 km/h
+        road_surface(2,i) = (0.04*(1-cos(7*pi*sim_time(i))));
     else
         road_surface(2,i) = 0;  
     end
@@ -88,14 +106,14 @@ qcar.InputName = {'zr_d';'Fa'};
 qcar.OutputName = {'zs-zus';'zs_dot';'zus-zr';'zus_dot';'zs_dotdot'};
 
 pid = pidtune(qcar(1,2),'PID');
-Kp = pid.Kp;
-Kd = pid.Kd;
-Ki = pid.Ki;
+Kp = pid.Kp + 1e5;
+Kd = pid.Kd + 1e2;
+Ki = pid.Ki + 2*1e6;
 
 pid_2 = pidtune(qcar(5,2),'PID');
-Kp_2 = pid_2.Kp;
+Kp_2 = pid_2.Kp + 1.6e2;
 Kd_2 = pid_2.Kd;
-Ki_2 = pid_2.Ki;
+Ki_2 = pid_2.Ki + 6*1e3;
 
 %% Controllability
 
@@ -103,13 +121,13 @@ Ki_2 = pid_2.Ki;
 rank(ctrb(A,B))
 
 %% LQR Control law
+% Q = diag([1*1e8, 1*1e7, 1, 1]);
 
-% Must be tuned
-Q = diag([1760*10^6, 11.6*10^6, 1, 1]);
-R = 0.01;
+Q = diag([1e10, 1e8, 1, 1]);
+R = 1;
 
 % feedback gain vector
-K = lqr( A, B(:,2), Q, R )
+K = lqr( A, B(:,2), Q, R );
 
 %% Start Simulation
 %------------------------------------------------------------------------------
@@ -118,7 +136,7 @@ fprintf( 'Starting Simulation\n' )
 tic; % start measuring time
 
 % Run the simulation
-model_sim = sim('Active_Suspension_model.slx');
+model_sim = sim('quarter_car_Active_Suspension_model');
 
 elapsed_time_simulation = toc; % stop measuring time
 
@@ -134,7 +152,7 @@ figure('Name','Road profile'); hold on;
 plot(road_profile)
 title('Road surface displacement')
 xlabel('$Time [s]$')
-ylabel('$zr [m]$')
+ylabel('$z_r [m]$')
 
 % state space variable
 state_passive = model_sim.state.state_passive;
@@ -147,7 +165,7 @@ plot(state_LQR.zs_zus)
 plot(state_PID.zs_zus)
 legend({'passive','LQR','PID'})
 title('Suspension travel')
-ylabel('$zs - zus [m]$')
+ylabel('$z_s - z_{us} [m]$')
 xlabel('$Time [s]$')
 
 figure('Name','Sprung mass velocity'); hold on;
@@ -156,7 +174,7 @@ plot(state_LQR.zs_d)
 plot(state_PID.zs_d)
 legend({'passive','LQR','PID'})
 title('Sprung mass velocity')
-ylabel('$\dot{zs}$ [m/s]')
+ylabel('$\dot{z_s}$ [m/s]')
 xlabel('$Time [s]$')
 
 figure('Name','Tire deflection'); hold on;
@@ -165,7 +183,7 @@ plot(state_LQR.zus_zr)
 plot(state_PID.zus_zr)
 legend({'passive','LQR','PID'})
 title('Tire deflection')
-ylabel('$zus - zr$ [m/s]')
+ylabel('$z_{us} - z_r$ [m/s]')
 xlabel('$Time [s]$')
 
 figure('Name','Unsprung mass velocity'); hold on;
@@ -175,7 +193,7 @@ plot(state_PID.zus_d)
 legend({'passive','LQR','PID'})
 title('Unsprung mass velocity')
 xlabel('Time (s)')
-ylabel('$\dot{zus}$ [m/s]')
+ylabel('$\dot{z_{us}}$ [m/s]')
 xlabel('$Time [s]$')
 
 % sprung mass acceleration
@@ -187,7 +205,19 @@ plot(sprung_mass_a.zs_dd_LQR)
 plot(sprung_mass_a.zs_dd_PID)
 legend({'passive','LQR','PID'})
 title('Sprung mass acceleration')
-ylabel('$\ddot{zs} [m/s^2]$')
+ylabel('$\ddot{z_s} [m/s^2]$')
+xlabel('$Time [s]$')
+
+% sprung mass motion
+sprung_mass_motion = model_sim.ms_motion;
+
+figure('Name','Sprung mass motion'); hold on;
+plot(sprung_mass_motion.zs_passive)
+plot(sprung_mass_motion.zs_LQR)
+plot(sprung_mass_motion.zs_PID)
+legend({'passive','LQR','PID'})
+title('Sprung mass motion')
+ylabel('$z_s [m]$')
 xlabel('$Time [s]$')
 
 %% Evaluation param
@@ -212,23 +242,67 @@ msdd_passive = sprung_mass_a.zs_dd_passive.Data;
 msdd_LQR = sprung_mass_a.zs_dd_LQR.Data;
 msdd_PID = sprung_mass_a.zs_dd_PID.Data;
 
-% Suspension travel
-sp_LQR_index = (1 - abs(rms(sp_LQR))/abs(rms(sp_passive)))*100
-sp_PID_index = (1 - abs(rms(sp_PID))/abs(rms(sp_passive)))*100
+ms_motion_passive = sprung_mass_motion.zs_passive.Data;
+ms_motion_LQR = sprung_mass_motion.zs_LQR.Data;
+ms_motion_PID = sprung_mass_motion.zs_PID.Data;
 
-% Tire deflection
-msd_LQR_index = (1 - abs(rms(msd_LQR))/abs(rms(msd_passive)))*100
-msd_PID_index = (1 - abs(rms(msd_PID))/abs(rms(msd_passive)))*100
+%% RMS performance index
+
+% Suspension travel
+PR_RMS.rms_sp_LQR_index = (1 - abs(rms(sp_LQR))/abs(rms(sp_passive)))*100;
+PR_RMS.rms_sp_PID_index = (1 - abs(rms(sp_PID))/abs(rms(sp_passive)))*100;
 
 % Sprung mass velocity
-td_LQR_index = (1 - abs(rms(td_LQR))/abs(rms(td_passive)))*100
-td_PID_index = (1 - abs(rms(td_PID))/abs(rms(td_passive)))*100
+PR_RMS.rms_msd_LQR_index = (1 - abs(rms(msd_LQR))/abs(rms(msd_passive)))*100;
+PR_RMS.rms_msd_PID_index = (1 - abs(rms(msd_PID))/abs(rms(msd_passive)))*100;
+
+% Tire deflection
+PR_RMS.rms_td_LQR_index = (1 - abs(rms(td_LQR))/abs(rms(td_passive)))*100;
+PR_RMS.rms_td_PID_index = (1 - abs(rms(td_PID))/abs(rms(td_passive)))*100;
 
 % Unsprung mass velocity
-musd_LQR_index = (1 - abs(rms(musd_LQR))/abs(rms(musd_passive)))*100
-musd_PID_index = (1 - abs(rms(musd_PID))/abs(rms(musd_passive)))*100
+PR_RMS.rms_musd_LQR_index = (1 - abs(rms(musd_LQR))/abs(rms(musd_passive)))*100;
+PR_RMS.rms_musd_PID_index = (1 - abs(rms(musd_PID))/abs(rms(musd_passive)))*100;
 
 % Sprung mass acceleration
-msdd_LQR_index = (1 - abs(rms(msdd_LQR))/abs(rms(msdd_passive)))*100
-msdd_PID_index = (1 - abs(rms(msdd_PID))/abs(rms(msdd_passive)))*100
+PR_RMS.rms_msdd_LQR_index = (1 - abs(rms(msdd_LQR))/abs(rms(msdd_passive)))*100;
+PR_RMS.rms_msdd_PID_index = (1 - abs(rms(msdd_PID))/abs(rms(msdd_passive)))*100;
+
+% Sprung mass motion
+PR_RMS.rms_ms_motion_LQR_index = (1 - abs(rms(ms_motion_LQR))/abs(rms(ms_motion_passive)))*100;
+PR_RMS.rms_ms_motion_PID_index = (1 - abs(rms(ms_motion_PID))/abs(rms(ms_motion_passive)))*100;
+
+PR_RMS
+
+%% Overshoot performance index
+
+% Suspension travel
+PR_OVER.over_sp_LQR_index = (1 - max(abs(sp_LQR))/max(abs(sp_passive)))*100;
+PR_OVER.over_sp_PID_index = (1 - max(abs(sp_PID))/max(abs(sp_passive)))*100;
+
+% Sprung mass velocity
+PR_OVER.over_msd_LQR_index = (1 - max(abs(msd_LQR))/max(abs(msd_passive)))*100;
+PR_OVER.over_msd_PID_index = (1 - max(abs(msd_PID))/max(abs(msd_passive)))*100;
+
+% Tire deflection
+PR_OVER.over_td_LQR_index = (1 - max(abs(td_LQR))/max(abs(td_passive)))*100;
+PR_OVER.over_td_PID_index = (1 - max(abs(td_PID))/max(abs(td_passive)))*100;
+
+% Unsprung mass velocity
+PR_OVER.over_musd_LQR_index = (1 - max(abs(musd_LQR))/max(abs(musd_passive)))*100;
+PR_OVER.over_musd_PID_index = (1 - max(abs(musd_PID))/max(abs(musd_passive)))*100;
+
+% Sprung mass acceleration
+PR_OVER.over_msdd_LQR_index = (1 - max(abs(msdd_LQR))/max(abs(msdd_passive)))*100;
+PR_OVER.over_msdd_PID_index = (1 - max(abs(msdd_PID))/max(abs(msdd_passive)))*100;
+
+% Sprung mass motion
+PR_OVER.over_ms_motion_LQR_index = (1 - max(abs(ms_motion_LQR))/max(abs(ms_motion_passive)))*100;
+PR_OVER.over_ms_motion_PID_index = (1 - max(abs(ms_motion_PID))/max(abs(ms_motion_passive)))*100;
+
+PR_OVER
+
+%% Stability analysis
+
+bode_plot
 
