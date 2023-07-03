@@ -15,6 +15,8 @@ set(0,'defaultAxesFontSize',22)
 set(0,'DefaultLegendFontSize',22)
 set(0,'DefaultFigureWindowStyle','docked')
 set(0,'DefaultUicontrolFontsize', 14)
+set(0, 'DefaultLineLineWidth', 3);
+% set(findall(gcf,'type','line'),'linewidth',2)
 
 %% Setting Params -> E-AGLE TRT car (Fenice)
 
@@ -153,6 +155,7 @@ plot(road_profile)
 title('Road surface displacement')
 xlabel('$Time [s]$')
 ylabel('$z_r [m]$')
+xlim([0 3])
 
 % state space variable
 state_passive = model_sim.state.state_passive;
@@ -167,6 +170,7 @@ legend({'passive','LQR','PID'})
 title('Suspension travel')
 ylabel('$z_s - z_{us} [m]$')
 xlabel('$Time [s]$')
+xlim([0 3])
 
 figure('Name','Sprung mass velocity'); hold on;
 plot(state_passive.zs_d)
@@ -176,6 +180,7 @@ legend({'passive','LQR','PID'})
 title('Sprung mass velocity')
 ylabel('$\dot{z_s}$ [m/s]')
 xlabel('$Time [s]$')
+xlim([0 3])
 
 figure('Name','Tire deflection'); hold on;
 plot(state_passive.zus_zr)
@@ -185,6 +190,7 @@ legend({'passive','LQR','PID'})
 title('Tire deflection')
 ylabel('$z_{us} - z_r$ [m/s]')
 xlabel('$Time [s]$')
+xlim([0 3])
 
 figure('Name','Unsprung mass velocity'); hold on;
 plot(state_passive.zus_d)
@@ -195,6 +201,7 @@ title('Unsprung mass velocity')
 xlabel('Time (s)')
 ylabel('$\dot{z_{us}}$ [m/s]')
 xlabel('$Time [s]$')
+xlim([0 3])
 
 % sprung mass acceleration
 sprung_mass_a = model_sim.sprung_mass_acc;
@@ -207,6 +214,7 @@ legend({'passive','LQR','PID'})
 title('Sprung mass acceleration')
 ylabel('$\ddot{z_s} [m/s^2]$')
 xlabel('$Time [s]$')
+xlim([0 3])
 
 % sprung mass motion
 sprung_mass_motion = model_sim.ms_motion;
@@ -219,6 +227,7 @@ legend({'passive','LQR','PID'})
 title('Sprung mass motion')
 ylabel('$z_s [m]$')
 xlabel('$Time [s]$')
+xlim([0 3])
 
 %% Evaluation param
 

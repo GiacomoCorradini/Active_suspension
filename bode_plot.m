@@ -40,16 +40,19 @@ figure('Name','Bode plot suspension travel'); hold on
 bodemag(sys(7),sys(1),sys(4))
 legend('passive','LQR','PID')
 title('Bode plot suspension travel')
+set(findall(gcf,'type','line'),'linewidth',3)
 
 figure('Name','Bode plot sprung mass acceleration'); hold on
 bodemag(sys(8),sys(2),sys(5))
 legend('passive','LQR','PID')
 title('Bode plot sprung mass acceleration')
+set(findall(gcf,'type','line'),'linewidth',3)
 
 figure('Name','Bode plot sprung mass motion'); hold on
 bodemag(sys(9),sys(3),sys(6))
 legend('passive','LQR','PID')
 title('Bode plot sprung mass motion')
+set(findall(gcf,'type','line'),'linewidth',3)
 
 %% Zero-pole map
 
@@ -57,14 +60,25 @@ figure('Name','Zero-pole map suspension travel'); hold on
 pzplot(sys(7),sys(1),sys(4))
 legend('passive','LQR','PID')
 title('Zero-pole map suspension travel')
+set(findall(gcf,'type','line'),'linewidth',2)
+h = findobj(gca, 'type', 'line');
+set(h, 'markersize', 10)
+set(h, 'linewidth', 4)
 
 figure('Name','Zero-pole map sprung mass acceleration'); hold on
 pzplot(sys(8),sys(2),sys(5))
 legend('passive','LQR','PID')
 title('Zero-pole map sprung mass acceleration')
+set(findall(gcf,'type','line'),'linewidth',2)
+h = findobj(gca, 'type', 'line');
+set(h, 'markersize', 10)
+set(h, 'linewidth', 4)
 
 figure('Name','Zero-pole map sprung mass motion'); hold on
 pzplot(sys(9),sys(3),sys(6))
 legend('passive','LQR','PID')
 title('Zero-pole map sprung mass motion')
-
+set(findall(gcf,'type','line'),'linewidth',2)
+h = findobj(gca, 'type', 'line');
+set(h, 'markersize', 10)
+set(h, 'linewidth', 4)
