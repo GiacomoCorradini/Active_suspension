@@ -9,3 +9,7 @@ Perform a comparison of the following controllers on the suspension system
 
 - LQR controller
 - PID controller
+
+## Results
+
+All the results and discussions are reported in the following paper: [Active_suspension_system](Active_suspension_system.pdf)
